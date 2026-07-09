@@ -1,9 +1,7 @@
-<?php
-// ================= SERVER COOKIES FOLDER =================
-$cookies_folder = __DIR__ . '/cookies';
+cookies_folder = '/tmp/cookies';
 
 if (!is_dir($cookies_folder)) {
-    mkdir($cookies_folder, 0777, true);
+    @mkdir($cookies_folder, 0777, true);
 }
 
 $cookie_files = glob($cookies_folder . '/*.txt');
