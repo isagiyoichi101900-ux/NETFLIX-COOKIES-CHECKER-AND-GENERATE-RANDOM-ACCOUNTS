@@ -1,6 +1,6 @@
 <?php
 // ================= SERVER COOKIES FOLDER =================
-$cookies_folder = __DIR__ . '/cookies';
+$cookies_folder = '/tmp/cookies';   // ← Baguhin dito
 
 if (!is_dir($cookies_folder)) {
     mkdir($cookies_folder, 0777, true);
