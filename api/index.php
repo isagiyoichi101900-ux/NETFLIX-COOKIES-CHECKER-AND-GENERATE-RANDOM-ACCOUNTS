@@ -1,9 +1,9 @@
 <?php
-// ================= SERVER COOKIES FOLDER =================
+// ================= SERVER COOKIES FOLDER (Vercel Compatible) =================
 $cookies_folder = '/tmp/cookies';
 
 if (!is_dir($cookies_folder)) {
-    @mkdir($cookies_folder, 0777, true); // @ para walang warning
+    @mkdir($cookies_folder, 0777, true);
 }
 
 $cookie_files = glob($cookies_folder . '/*.txt');
@@ -15,32 +15,49 @@ foreach ($cookie_files as $file) {
     }
 }
 
+// ================= IMPROVED API HANDLER =================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $raw_post_data = file_get_contents('php://input');
     $json_data = json_decode($raw_post_data, true);
+
     if (isset($json_data['cookie'])) {
         $my_api_key = "NFK_cde619bfa57bd794d0e574da";
         $api_url = "https://nftoken.site/v1/api.php";
+
         $payload = json_encode([
             'key' => $my_api_key,
             'cookie' => $json_data['cookie']
         ]);
+
         $ch = curl_init($api_url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 25);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+
         $response = curl_exec($ch);
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curl_error = curl_error($ch);
         curl_close($ch);
+
         if ($response === false) {
-            http_response_code(500);
             header('Content-Type: application/json');
-            echo json_encode(['status' => 'ERROR', 'message' => 'Connection failed']);
+            echo json_encode([
+                'status' => 'ERROR', 
+                'message' => 'Curl failed: ' . $curl_error
+            ]);
             exit;
         }
+
+        // Kung walang laman ang response
+        if (empty(trim($response))) {
+            echo json_encode(['status' => 'ERROR', 'message' => 'Empty response from API']);
+            exit;
+        }
+
         header('Content-Type: application/json');
         echo $response;
         exit;
